@@ -1,0 +1,261 @@
+requires "direct/direct";
+requires "direct/gles";
+requires "direct/key_ids";
+requires "values";
+requires "str";
+requires "sio";
+
+class App : direct.IMmApp, direct.ISoundSynth {
+private:
+    var program *gles.IglEsProgram;
+    var v_buffer *gles.IVertexBuffer;
+
+    var xoff f32;
+    var yoff f32;
+    var res_loaded bool;
+
+    fn mut onContextLoss(io gl gles.IGlEs) bool;
+}
+
+public fn singmain(args [*]string) i32
+{
+    var application App;
+    direct.runMmApp(application, "Ta Daaaa !!", direct.win_exit_on_esc + direct.win_decorated + direct.win_resizable, 400, 200);
+    return(0);
+}
+
+fn App.canExit() bool
+{
+    return(true);
+}
+
+// invoked once at startup
+fn App.initApplication(io mm direct.IMmAppServices) bool
+{
+    var entry i32;
+    var width i32;
+    var height i32;
+    while (width < 640 && height < 480) {
+        mm.enumerateModes(entry, width, height);
+        entry++;
+    }
+    mm.setFullScreenVideoResolution(width, height);
+    this.xoff = 0;
+    this.yoff = 0;
+    this.res_loaded = false;
+    return(true);
+}
+
+fn App.stepApplication(io mm direct.IMmAppServices, io gl gles.IGlEs) bool
+{
+    // once init
+    if (!this.res_loaded) {
+        if (!this.onContextLoss(gl)) {
+            return(false);
+        }
+        this.res_loaded = true;
+
+        mm.forceWindowAspectRatio(2, 1);
+        /*
+        mm.setWindowSizeLimits(300, 150, 10000, 10000);
+        */
+    }
+
+    // handle inputs
+    if (mm.isKeyJustPressed(key_ids.KEY_0)) {
+        mm.changeToFromWindowedMode(true);
+    } else if (mm.isKeyJustPressed(key_ids.KEY_9)) {
+        mm.changeToFromWindowedMode(false);
+        this.xoff = 0;
+        this.yoff = 0;
+    }
+
+    if (mm.isKeyJustPressed(key_ids.KEY_4)) {
+        mm.setCursorMode(direct.CursorMode.disabled);
+    } else if (mm.isKeyJustPressed(key_ids.KEY_5)) {
+        mm.setCursorMode(direct.CursorMode.standard);
+    }
+
+    // to test res swich while in full screen 
+    if (mm.isKeyJustPressed(key_ids.KEY_8)) {
+        mm.setFullScreenVideoResolution(800, 600);
+    }
+
+    // just to break and test the variable value
+    var ww i32;
+    var wh i32;
+    var wx i32;
+    var wy i32;
+     mm.getWindowedVideoResolution(ww, wh);
+    mm.getWindowedWindowPosition(wx, wy);
+    let keyname = mm.getKeyName(key_ids.KEY_8);
+
+    let key = str.encodeOne(mm.getCodePoint());
+    let mem = mm.getAvailableMemory();
+
+    if (key == "{") {
+        mm.startSoundSource(2048, 22050, this);
+    } else if (key == "}") {
+        mm.shutdownSoundSource();
+    }
+
+    if (mm.didLooseFocus()) {
+        mm.setMousePosition(100, 100); // place a breakpoint here to check
+    }
+
+    if (mm.isWindowed()) {
+        var xx i32;
+        var yy i32;
+        var width i32;
+        var height i32;
+
+        mm.getMousePosition(xx, yy);
+        mm.getResolution(width, height);
+        this.xoff = (f32(xx) * (2.0 / f32(width))) - 1.0;
+        this.yoff = -(f32(yy) * (2.0 / f32(height))) + 1.0;
+        if (mm.isMouseKeyJustPressed(0)) {
+            mm.setCursorShape(direct.CursorShape.hand);
+        } else if (mm.isMouseKeyJustPressed(1)) {
+            mm.setCursorShape(direct.CursorShape.arrow);
+        }
+    } else {
+        var dx i32;        
+        var dy i32;        
+
+        // mouse movement
+        mm.getMouseMovement(dx, dy);
+        this.xoff += f32(dx) * 0.001;
+        this.yoff += f32(dy) * 0.001;
+
+        // wheel
+        this.yoff += f32(mm.getMouseWheel()) * 0.1;
+
+        // several types of keys
+        if (mm.isMouseKeyJustPressed(0)) {
+            this.xoff -= 0.01;
+        } else if (mm.isMouseKeyDown(1)) {
+            this.xoff += 0.001;
+        }
+        if (mm.isKeyJustPressed(key_ids.KEY_A)) {
+            this.xoff -= 0.01;
+        } else if (mm.isKeyJustPressed(key_ids.KEY_D)) {
+            this.xoff += 0.01;
+        }
+        if (mm.isKeyDown(key_ids.KEY_Q)) {
+            this.xoff -= 0.01;
+        } else if (mm.isKeyDown(key_ids.KEY_E)) {
+            this.xoff += 0.01;
+        }
+        if (key == "l") {
+            this.xoff -= 0.01;
+        } else if (key == "r") {
+            this.xoff += 0.01;
+        }
+
+        this.xoff = min(max(this.xoff, -1.0), 1.0);
+        this.yoff = min(max(this.yoff, -1.0), 1.0);
+    }
+
+    if (mm.isKeyJustPressed(key_ids.KEY_LEFT)) {      // left arrow
+        mm.setMousePosition(0, 0);
+        mm.shutdownSoundSource();
+    }
+
+    if (mm.isKeyJustPressed(key_ids.KEY_7)) {
+        mm.setClipboardString(mm.getClipboardString() + "Bang !!");  
+    }
+
+    var vv [*]string;
+    mm.getDroppedPaths(vv);
+    if (vv.size() != 0) {
+        vv.clear(); // place a breakpoint here
+    }
+
+    // render
+    var width i32;
+    var height i32;
+ 
+    mm.getResolution(width, height);
+    gl.viewport(0, 0, width, height);
+
+    if (mm.isWindowed()) {
+        if (mm.isMaximized()) {
+            gl.clearColor(0.0, 1.0, 0.5, 1.0);
+        } else {
+            gl.clearColor(0.0, 0.5, 1.0, 1.0);
+        }
+    } else {
+        gl.clearColor(1.0, 0.5, 0.5, 1.0);
+    }
+
+    gl.clear(true, true, true);
+
+    gl.disable(gles.FeatureId.depth_test);
+    gl.disable(gles.FeatureId.stencil_test);
+    gl.disable(gles.FeatureId.blend);
+    gl.colorMask(true, true, true, true);
+
+    gl.useVbuffer(this.v_buffer);
+    gl.useProgram(this.program);
+    let location = this.program.getUniformLocation("offset");
+    gl.uniform4f(location, this.xoff, this.yoff, 0.0, 0.0);
+
+    gl.frontFace(gles.FaceMode.ccw);
+    gl.draw(gles.DrawPrimitive.triangles, 0, 3);
+
+    gl.finish();
+
+    mm.swapBuffers();
+
+    return(true);
+}
+
+fn App.onContextLoss(io gl gles.IGlEs) bool
+{
+    var vs string;
+    var fs string;
+    var error string;
+    sio.fileReadText("../../media/vs.txt", vs);
+    sio.fileReadText("../../media/fs.txt", fs);
+    this.program = gl.createProgram(vs, fs, error);
+    if (this.program == null) {
+        return(false);
+    }
+
+/*
+    // set states
+    //glBlendEquation(GL_FUNC_ADD);
+    //glDepthFunc(GL_LEQUAL);
+    //glEnable(GL_DEPTH_TEST);
+    //glFrontFace(GL_CW);
+    //glEnable(GL_CULL_FACE);
+*/
+
+    var content [*]f32 = { -0.2, 0.2, 0.0, 1.0,  0.2, 0.2, 0.0, 1.0,  0.2, -0.2, 0.0, 1.0 };
+    var names [*]string = {"v_position"};
+    var dim [*]i32 = { 4 };
+    this.v_buffer = gl.createVertexBufferF32(content, names, dim);
+    return(true);
+}
+
+// invoked once on exit
+fn App.quitApplication() bool
+{
+    return(true);
+}
+
+fn App.fillSamples(samples_count i32, out samples [*]i16) void
+{
+    // sine wave 22050/32 Hz
+    let factor = 2.0 * values.pi32 / 32.0;
+    var ii = 0;
+    while (ii < 32 && ii < samples_count) {
+        let wave = (f32(ii) * factor).sin() * 1024.0;
+        samples.push_back(i16(wave));
+        ii++;
+    }
+    while (ii < samples_count) {
+        samples.push_back(samples[ii & 31]);
+        ii++;
+    }
+}

@@ -1,0 +1,162 @@
+namespace mmapp;
+
+public enum ComponentType { unsigned8, signed8, unsigned16, signed16, float32 }
+
+public class Buffer {
+public:    
+    fn mut clear() void;
+    fn mut addComponent(name string, dimensions i32, ctype ComponentType, normalized bool = false) bool;
+    fn getComponentInfo(idx i32, out name string, out dimensions i32, out ctype ComponentType, out normalized bool) bool;
+    fn mut resize(num_vertices i32) bool;
+
+    fn mut setI8Component(values [*]i8, component_idx i32, vertex_idx i32 = 0) bool;
+    fn mut setI16Component(values [*]i16, component_idx i32, vertex_idx i32 = 0) bool;
+    fn mut setU8Component(values [*]u8, component_idx i32, vertex_idx i32 = 0) bool;
+    fn mut setU16Component(values [*]u16, component_idx i32, vertex_idx i32 = 0) bool;
+    fn mut setF32Component(values [*]f32, component_idx i32, vertex_idx i32 = 0) bool;
+
+    fn getI8Component(out values [*]i8, component_idx i32, vertex_idx i32 = 0, count i32 = 0) void;
+    fn getI16Component(out values [*]i16, component_idx i32, vertex_idx i32 = 0, count i32 = 0) void;
+    fn getU8Component(out values [*]u8, component_idx i32, vertex_idx i32 = 0, count i32 = 0) void;
+    fn getU16Component(out values [*]u16, component_idx i32, vertex_idx i32 = 0, count i32 = 0) void;
+    fn getF32Component(out values [*]f32, component_idx i32, vertex_idx i32 = 0, count i32 = 0) void;
+}
+
+public enum GlError { invalid_enum, invalid_value, invalid_operation, out_of_memory, no_error, other }
+public enum StringInfo { vendor, renderer, version, sl_version, extensions }
+public enum TexFormat { rgb, rgba, luminance, lumnance_alpha, alpha }
+public enum TexUsage { plain, cube }
+public enum TexWrap { wrap, clamp }
+public enum TexFilter { nearest, bilinear, trilinear }
+public enum FaceMode { ccw, cw }
+public enum FaceOrientation { front, back, both }
+public enum FeatureId { cull, poly_offset, scissor, depth_test, stencil_test, blend }
+public enum CompareFunc { never, always, less, lequal, equal, greater, gequal, notequal }
+public enum StencilOp { keep, zero, replace, inc, dec, invert, inc_wrap, dec_wrap }
+public enum BlendOp { add, src_minus_dst, dst_minus_src }
+public enum BlendWeight { zero, one, 
+    src_color, one_minus_src_color,
+    dst_color, one_minus_dst_color,
+    src_alpha, one_minus_src_alpha,
+    dst_alpha, one_minus_dst_alpha,
+    constant_color, one_minus_constant_color,
+    constant_alpha, one_minus_constant_alpha,
+    src_alpha_saturate
+    }
+public enum DrawPrimitive { points, line_strip, line_loop, lines, triangle_strip, triangle_fan, triangles }    
+
+public interface IVertexBuffer {
+    fn mut fill(content Buffer) bool;
+    fn mut fillF32(content [*]f32, names [*]string, dimensions [*]i32) bool;
+}
+
+public interface IIndexBuffer {
+    fn mut fill(content [*]u16) bool;
+}
+
+public interface IglEsProgram {
+    fn getUniformLocation(name string) i32;
+}
+
+public interface ITexture {
+    fn mut fill(content [*]u8, width i32, height i32, level i32, 
+        format TexFormat = TexFormat.rgba, 
+        cubeface i32 = -1,
+        autoMipMaps bool = true) bool;
+
+    fn mut fillCompressed(content [*]u8, width i32, height i32, level i32, cubeface i32 = -1) bool;
+}
+
+public interface IColorTarget {
+    fn getWidth() i32;
+    fn getHeight() i32;
+}
+
+public interface IDepthTarget {
+}
+
+public interface IGlEs {
+
+    // nfo
+    fn mut getError() GlError;
+    fn getString(info_type StringInfo) string;
+
+    // resources
+    fn mut createVertexBuffer(content Buffer) *IVertexBuffer;
+    fn mut createVertexBufferF32(content [*]f32, names [*]string, dimensions [*]i32) *IVertexBuffer;
+    fn mut createIndexBuffer(content [*]u16) *IIndexBuffer;
+    fn mut createTexture(width i32, height i32, 
+            filtering TexFilter = TexFilter.trilinear, 
+            wrap_mode TexWrap = TexWrap.wrap, 
+            purpose TexUsage = TexUsage.plain) *ITexture;
+    fn mut createProgram(vs_source string, fs_source string, out errordesc string) *IglEsProgram;
+    fn mut createColorTarget(width i32, height i32) *IColorTarget;
+    fn mut createDepthTarget(width i32, height i32) *IDepthTarget;
+
+    // inputs
+    fn mut uniform1f(index i32, value f32) void;
+    fn mut uniform2f(index i32, v0 f32, v1 f32) void;
+    fn mut uniform3f(index i32, v0 f32, v1 f32, v2 f32) void;
+    fn mut uniform4f(index i32, v0 f32, v1 f32, v2 f32, v3 f32) void;
+    fn mut uniform1i(index i32, value i32) void;
+    fn mut uniform2i(index i32, v0 i32, v1 i32) void;
+    fn mut uniform3i(index i32, v0 i32, v1 i32, v2 i32) void;
+    fn mut uniform4i(index i32, v0 i32, v1 i32, v2 i32, v3 i32) void;
+    fn mut uniformMatrix2f(index i32, values [2][2]f32, transpose bool = false) void;
+    fn mut uniformMatrix3f(index i32, values [3][3]f32, transpose bool = false) void;
+    fn mut uniformMatrix4f(index i32, values [4][4]f32, transpose bool = false) void;
+    fn mut setTextureIndex(uniform_name string, stage i32) void;
+
+    fn mut useVbuffer(vb const *IVertexBuffer) void;
+    fn mut useAdditionalVbuffer(vb const *IVertexBuffer) void;
+    fn mut useCpuVertices(vertices const *Buffer) void;
+    fn mut useAdditionalCpuVertices(vertices const *Buffer) void;
+    fn mut useIbuffer(ib const *IIndexBuffer) void;
+    fn mut useProgram(prog const *IglEsProgram) void;
+    fn mut useTexture(texture const *ITexture, stage i32, purpose TexUsage = TexUsage.plain) void;
+    fn mut useColorTargetAsTexture(texture const *IColorTarget, stage i32) void;
+
+    fn mut useBackBuffer() void;
+    fn mut useOfflineTarget() void;
+    fn mut selectOfflineColor(target const *IColorTarget) const *IColorTarget;
+    fn mut selectOfflineDepth(target const *IDepthTarget) const *IDepthTarget;
+
+    // options
+    fn mut viewport(left_x i32, lower_y i32, width i32, height i32) void;
+    fn mut scissor(left_x i32, lower_y i32, width i32, height i32) void;
+    fn mut depthRangef(min_z f32, max_z f32) void;
+    fn mut lineWidth(width f32) void;
+    fn mut frontFace(mode FaceMode) void; 
+    fn mut cullFace(mode FaceOrientation) void;
+    fn mut polygonOffset(factor f32, units f32) void;
+    fn mut stencilFunc(func CompareFunc, ref i32, mask u32) void;
+    fn mut stencilFuncSeparate(face FaceOrientation, func CompareFunc, ref i32, mask u32) void;
+    fn mut stencilOp(on_stencil_fail StencilOp, on_depth_fail StencilOp, on_pass StencilOp) void;
+    fn mut stencilOpSeparate(face FaceOrientation, on_stencil_fail StencilOp, on_depth_fail StencilOp, on_pass StencilOp) void;
+    fn mut depthFunc(func CompareFunc) void;
+    fn mut blendEquation(op BlendOp) void;
+    fn mut blendEquationSeparate(rgb BlendOp, alpha BlendOp) void;
+    fn mut blendFunc(src BlendWeight, dst BlendWeight) void;
+    fn mut blendFuncSeparate(rgb_src BlendWeight, rgb_dst BlendWeight, alpha_src BlendWeight, alpha_dst BlendWeight) void;
+    fn mut blendColor(red f32, green f32, blue f32, alpha f32) void;
+    fn mut colorMask(red bool, green bool, blue bool, alpha bool) void;
+    fn mut depthMask(write_enable bool) void;
+    fn mut stencilMask(mask u32) void;
+    fn mut stencilMaskSeparate(face FaceOrientation, mask u32) void;
+    fn mut enable(feature FeatureId) void;
+    fn mut disable(feature FeatureId) void;
+
+    // options for clear
+    fn mut clearColor(red f32, green f32, blue f32, alpha f32) void;
+    fn mut clearDepth(depth f32) void;
+    fn mut clearStencil(value i32) void;
+
+    // commands
+    fn readPixels(out data [*]u8, left_x i32, lower_y i32, width i32, height i32) void;
+    fn mut clear(color bool, depth bool, stencil bool) void;
+    fn mut flush() void;
+    fn mut finish() void;
+    fn mut draw(mode DrawPrimitive, first i32, count i32) void;
+    fn mut drawElements(mode DrawPrimitive, first i32, count i32) void;
+    fn mut drawCpuElements(mode DrawPrimitive, indices [*]u16) void;
+}

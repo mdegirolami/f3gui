@@ -1,0 +1,179 @@
+namespace mmapp;
+requires "direct/gles";
+
+public interface ISoundSynth {
+    fn mut fillSamples(samples_count i32, out samples [*]i16) void;
+}
+
+public enum CursorMode { standard, disabled }
+public enum CursorShape { arrow, ibeam, xair, hand, h_resize, v_resize }
+
+public enum ScheduleMode { loop_fast, wake_on_event }
+
+public let win_resizable = 1;
+public let win_decorated = 2;
+public let win_maximized = 4;
+public let win_exit_on_esc = 8;
+
+public let mouse_keycount = 8;
+public let mouse_mbr = 0;
+public let mouse_mbl = 1;
+public let mouse_mbc = 2;
+
+public let joy_axis_x = 0;
+public let joy_axis_y = 1;
+public let joy_axis_z = 2;
+public let joy_axis_rx = 3;
+public let joy_axis_ry = 4;
+public let joy_axis_rz = 5;
+public let joy_axis_slider0 = 6;
+public let joy_axis_slider1 = 7;
+
+public let hat_up = 1;
+public let hat_right = 2;
+public let hat_down = 4;
+public let hat_left = 8;
+
+public let gamepad_axis_left_x = 0;
+public let gamepad_axis_left_y = 1;
+public let gamepad_axis_right_x = 2;
+public let gamepad_axis_right_y = 3;
+public let gamepad_axis_left_trigger = 4;
+public let gamepad_axis_right_trigger = 5;
+  
+public let gamepad_button_a = 0;
+public let gamepad_button_b = 1;
+public let gamepad_button_x = 2;
+public let gamepad_button_y = 3;
+public let gamepad_button_left_bumper = 4;
+public let gamepad_button_right_bumper = 5;
+public let gamepad_button_back = 6;
+public let gamepad_button_start = 7;
+public let gamepad_button_guide = 8;
+public let gamepad_button_left_thumb = 9;
+public let gamepad_button_right_thumb = 10;
+public let gamepad_button_dpad_up = 11;
+public let gamepad_button_dpad_right = 12;
+public let gamepad_button_dpad_down = 13;
+public let gamepad_button_dpad_left = 14;
+
+public let max_contacts = 5;
+
+//
+// begin: is returned just once, makes the slot active - The TouchContact entries are valid
+// active: the contact is active - The TouchContact entries are valid
+// ended: end of the contact - The TouchContact entries are valid 
+// cancelled: end of the contact because of an external event (es: lost focus of the app). Ignore the gesture if you can.
+// free_slot: unused record in the returned vector.
+//
+public enum ContactPhase { begin, active, ended, cancelled, free_slot }
+
+public class TouchContact {
+public:
+    var status ContactPhase;
+    var tapcounts i32;  // single or double
+    var startx f32;     // very first contact position (when status was 'begin')     
+    var starty f32;
+    var prevx f32;      // previously known location (previous read)
+    var prevy f32;
+    var endx f32;       // current location
+    var endy f32;
+}
+
+public interface IMmAppServices {
+
+    // for each entry_index returns an available full screen video mode. If entry_index is too high returns false
+    fn enumerateModes(entry_index i32, out width i32, out height i32) bool;
+
+    // the resolution we want to use when in full screen
+    fn mut setFullScreenVideoResolution(width i32, height i32) bool;
+    fn     getFullScreenVideoResolution(out width i32, out height i32) void;
+
+    // to actually switch to/from full screen modes
+    fn mut changeToFromWindowedMode(windowed bool) bool;
+
+    // the resolution and position of the window when in windowed mode
+    fn getWindowedVideoResolution(out width i32, out height i32) void;
+    fn getWindowedWindowPosition(out xpos i32, out ypos i32) void;
+
+    // the current resolution (depends if we are in windowed or full screen mode)
+    fn getResolution(out width i32, out height i32) void;
+
+    // makes the last rendered scene effective
+    fn mut swapBuffers() void;
+
+    fn isMaximized() bool;
+    fn isWindowed() bool;
+
+    fn mut setTitle(title string) void;
+    fn mut setIcon(icon [*]u8) void;
+    fn mut forceWindowAspectRatio(width i32, height i32) void;
+    fn mut setWindowSizeLimits(min_w i32, min_h i32, max_w i32, max_h i32) void;
+
+    // for mobile devices
+    fn mut enableScreenRotation(allowed_orientations_mask i32) void;
+    fn getScreenRotation() i32;
+
+    // SOUND
+    fn mut startSoundSource(chunk_samples i32, rate i32, io callback ISoundSynth) bool;
+    fn mut shutdownSoundSource() void;
+
+    // INPUT
+    fn     isKeyDown(key_id i32) bool;
+    fn     isKeyJustPressed(key_id i32) bool;
+    fn     getKeyName(key_id i32) string;
+    fn mut getCodePoint() i32;
+    fn mut flushCodePoints() void;
+
+    fn     isMouseKeyDown(key_index i32) bool;
+    fn     isMouseKeyJustPressed(key_index i32) bool;
+    fn mut getMouseWheel() i32; 
+
+    fn mut setCursorMode(mode CursorMode) void;
+    fn mut setCursorShape(shape CursorShape) void;
+    fn     getMousePosition(out xx i32, out yy i32) void;
+    fn mut setMousePosition(xx i32, yy i32) void;
+    fn     getMouseMovement(out dx i32, out dy i32) void;
+
+    fn isJoystickPresent(idx i32 = 0) bool;
+    fn isJoystickAGamepad(idx i32 = 0) bool;
+    fn getJoystickButtons(out buttons[*]bool, idx i32 = 0) void;
+    fn getJoystickAxes(out axis[*]f32, idx i32 = 0) void;
+    fn getJoystickHats(out hats[*]i32, idx i32 = 0) void;
+    fn getJoystickName(idx i32 = 0) string;
+
+    fn mut getTouchScreenContacts(out contacts [max_contacts]TouchContact) void;
+    fn mut flushTouchScreenContacts() void;
+
+    fn getAccelerometerVector(out xx f32, out yy f32, out zz f32) void;
+
+    // clipboard and dragging
+    fn     getClipboardString() string;
+    fn mut setClipboardString(str string) void;
+    fn mut getDroppedPaths(out paths [*]string) void;
+
+    // MIX
+    fn mut setScheduleMode(mode ScheduleMode, tout f32) void;
+    fn mut postEmptyEvent() void;
+    fn mut didLooseFocus() bool;    // games need to know so they switch to a pause screen.
+    fn mut didLooseContext() bool;
+    fn getAvailableMemory() i32;    // Mbytes, returns 0 if unsupported on the platform.
+}
+
+public interface IMmApp {
+
+    // invoked once at startup
+    fn mut initApplication(io mm IMmAppServices) bool;
+
+    // invoked periodically
+    fn mut stepApplication(io mm IMmAppServices, io gles gles.IGlEs) bool;
+
+    // invoked when the user press the close button on the window bar. Return false to prevent the app from closing
+    fn mut canExit() bool;
+
+    // invoked once on exit
+    fn mut quitApplication() bool;
+}
+
+// exits when the application exits
+public fn runMmApp(io the_app IMmApp, win_title string, win_flags i32, win_width i32, win_height i32) void;

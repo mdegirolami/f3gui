@@ -1,0 +1,54 @@
+size:
+- fix: as stated
+- user: user can drag the boundary within min/max
+- fit: as big as the bigger child
+- leaf: max(all is left, min)
+
+sum of widths exceeds father -> clamp
+sum of widths smaller than father -> leave space
+scroll autoenabled on the layout direction
+
+Vertical layout:
+- alignment: left, center, right.
+- gravity: up, down
+
+H layout:
+- alignment: up, center, down.
+- gravity: left, right
+
+1) fixed size
+=============
+first pass: a mano a mano che l'utente specifica le dimensioni (width per layout verticale, height per orizzontale), si va a costruire 
+il bsp.
+Quando un layout si chiude (utente chiama endLayout), la somma delle altezze degli elementi contenuti per VLayout, larghezze per HLayout viene salvata.
+alla fine avro' per ogni Vlayout: 
+    - larghezza come impostata, 
+    - altezza disponibile ignota,  (cioe' questa non l'avro' !!)
+    - altezza richiesta dal contenuto.
+e viceversa per HLayout
+
+visito il bsp accendendo la scrollbar per quei layout in cui richiesta > disponibilita' dove la disponibilita' e':
+    - la larghezza del padre (decurtata di scrollbar) per i layout orizzontali 
+    - l'altezza del padre (decurtata di scrollbar) per i layout verticali.
+
+second pass: render. semplicemente disegnare gli elementi tenendo conto dello scroll e del clamp.
+
+2) size variabile
+=================
+first pass: as above, ma la larghezza/altezza dei layout resizable viene dall'apposita variabile di stato.
+
+second pass: gestendo l'input bisogna eventualmente cambiare la var di stato clampando sul range ammesso di dimensioni.
+
+3) left space
+=============
+first pass: the item takes the residual space or a minimum value.
+
+4) fit
+======
+first pass: Quando un layout si chiude, oltre a determinare la somma delle altezze/larghezze dei figli si prende anche la massima dimensione
+dei figli nell'altro verso (solo figli di tipo widget) e si andra' a forzare la dimensione a questo valore o al minimo impostato.
+
+5) root
+=======
+has full window size. Is not a layout size type, automatically applies to the root. 
+    

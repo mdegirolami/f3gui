@@ -1,0 +1,10 @@
+cc_extra_flags = -g
+sing_extra_flags = -g
+ln_extra_libs = -lws2_32 -lopengl32 -ldxguid -lgdi32 -lole32
+
+platform = win
+cfg = debug
+dbg_suffix = _d
+
+bin_target = ../../bin/win/f3gui_d.exe
+include ../build_aux.ninja

@@ -1,0 +1,71 @@
+# sdk resources
+include ../sdk_location.ninja
+singcc = $sdk/$platform/bin/sing
+singhh = $sdk/sing_headers
+singinc = $sdk/inc
+singlib = $sdk/$platform/lib/$cfg/singlib.a
+
+#optionals
+skip_usage = -u
+
+# directories
+temp = ../../out/$cfg
+sing = ../../sing
+cpp  = ../../src
+
+# options for all the configurations/platforms
+cc_flags = -fsigned-char -std=c++11 $cc_extra_flags -I $cpp -I $temp -I $singinc -I ../../libs/glfw/include -I ../../modules/inc -fmax-errors=20
+ln_libs = $singlib $ln_extra_libs
+
+#rules
+rule sc
+  deps = gcc
+  depfile = $out.d
+  command = $singcc $skip_usage $sing_extra_flags -I $sing -I $singhh -I ../../modules/inc_s -MF -o $out $in
+
+rule cc
+  deps = gcc
+  depfile = $out.d
+  command = g++ -MD -MF $out.d $cc_flags -c $in -o $out
+
+rule ln
+  command = g++ -std=c++11 -mwindows -o $out $in $ln_libs
+
+rule aa
+  command = ar rvs $out $in
+
+# sing->temp
+build $temp/app/test.h | $temp/app/test.cpp : sc $sing/app/test.sing
+
+# temp->obj
+
+# cpp->obj
+build test.o : cc $temp/app/test.cpp
+build direct.o        : cc $cpp/lib/direct.cpp
+build main.o          : cc $cpp/app/main.cpp
+build gles.o          : cc $cpp/lib/gles.cpp
+build gl_objects.o    : cc $cpp/lib/gl_objects.cpp
+build WinAudioQueue.o : cc $cpp/lib/WinAudioQueue.cpp
+
+#build the library
+directlib_target = ../../modules/bin/direct/$platform/direct$dbg_suffix.a
+
+build $directlib_target: aa direct.o gles.o gl_objects.o WinAudioQueue.o
+
+#link
+build $bin_target: ln test.o main.o $directlib_target ../../libs/glfw/$platform/libglfw3.a
+
+default $bin_target
+
+## Converting from sing headers to c++ headers
+# sing_headers = ../../modules/inc_s/direct
+# cpp_headers = ../../modules/inc/direct
+# 
+# rule s2h
+#   command = $singcc -p -I $sing_headers -I $singhh -o $out $in
+# 
+# build $cpp_headers/direct.h : s2h $sing_headers/direct.sing
+# build $cpp_headers/gles.h : s2h $sing_headers/gles.sing
+# build $cpp_headers/key_ids.h : s2h $sing_headers/key_ids.sing
+# 
+# build all_headers: phony $cpp_headers/direct.h $cpp_headers/gles.h $cpp_headers/key_ids.h
