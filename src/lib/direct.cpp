@@ -1,15 +1,57 @@
-#include <Windows.h>
-#include <sysinfoapi.h>
 #include <math.h>
-#include "direct.h"
 #include "gles_impl.h"
 #include "direct/direct.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include "glcorearb.h"
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <sysinfoapi.h>
+#include "win/WinAudioQueue.h"
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
-#include "glcorearb.h"
-#include "WinAudioQueue.h"
+#else
+#include <unistd.h>
+#include "linux/linux_audio.h"
+#endif
+
+// GL 1.0
+PFNGLGETERRORPROC glGetError = NULL;
+PFNGLGETINTEGERVPROC glGetIntegerv = NULL;
+PFNGLGETSTRINGPROC glGetString = NULL;
+PFNGLTEXIMAGE2DPROC glTexImage2D = NULL;
+PFNGLTEXPARAMETERIPROC glTexParameteri = NULL;
+PFNGLVIEWPORTPROC glViewport = NULL;
+PFNGLDEPTHRANGEPROC glDepthRange = NULL;
+PFNGLSCISSORPROC glScissor = NULL;
+PFNGLLINEWIDTHPROC glLineWidth = NULL;
+PFNGLFRONTFACEPROC glFrontFace = NULL;
+PFNGLCULLFACEPROC glCullFace = NULL;
+PFNGLSTENCILFUNCPROC glStencilFunc = NULL;
+PFNGLSTENCILOPPROC glStencilOp = NULL;
+PFNGLCOLORMASKPROC glColorMask = NULL;
+PFNGLDEPTHMASKPROC glDepthMask = NULL;
+PFNGLSTENCILMASKPROC glStencilMask = NULL;
+PFNGLENABLEPROC glEnable = NULL;
+PFNGLDISABLEPROC glDisable = NULL;
+PFNGLCLEARCOLORPROC glClearColor = NULL;
+PFNGLCLEARDEPTHPROC glClearDepth = NULL;
+PFNGLCLEARSTENCILPROC glClearStencil = NULL;
+PFNGLREADPIXELSPROC glReadPixels = NULL;
+PFNGLCLEARPROC glClear = NULL;
+PFNGLFLUSHPROC glFlush = NULL;
+PFNGLDEPTHFUNCPROC glDepthFunc = NULL;
+PFNGLBLENDFUNCPROC glBlendFunc = NULL;
+PFNGLFINISHPROC glFinish = NULL;
+
+// GL 1.1
+PFNGLDELETETEXTURESPROC glDeleteTextures = NULL;
+PFNGLGENTEXTURESPROC glGenTextures = NULL;
+PFNGLBINDTEXTUREPROC glBindTexture = NULL;
+PFNGLPOLYGONOFFSETPROC glPolygonOffset = NULL;
+PFNGLDRAWARRAYSPROC glDrawArrays = NULL;
+PFNGLDRAWELEMENTSPROC glDrawElements = NULL;
 
 // GL 1.2
 PFNGLDRAWRANGEELEMENTSPROC glDrawRangeElements = NULL;
@@ -273,6 +315,14 @@ static const int fifo_len = 8;
 static const int key_pressed = 0x80;
 static const int key_hit = 0x40;
 
+void dummyGlDeleteTextures(GLsizei n, const GLuint *textures) {}
+void dummyGlDeleteQueries(GLsizei n, const GLuint *ids) {}
+void dummyGlDeleteBuffers(GLsizei n, const GLuint *buffers) {}
+void dummyGlDeleteProgram(GLuint program) {}
+void dummyGlDeleteShader(GLuint shader) {}
+void dummyGlDeleteRenderBuffers(GLsizei n, const GLuint *renderbuffers) {}
+void dummyGlDeleteFrameBuffers(GLsizei n, const GLuint *framebuffers) {}
+
 class DirectImpl : public IMmAppServices
 {
 public:
@@ -383,8 +433,12 @@ private:
     int32_t     windowed_height_;
 
     // sound
-    ISoundSynth             *sound_source_;
+#ifdef _WIN32
     WinAudioQueue           audio_queue_;
+#else
+    LinuxAudioAdapter       linux_audio_;
+#endif    
+    ISoundSynth             *sound_source_;
     std::vector<int16_t>    samples_;
     int                     samples_count_;
 
@@ -416,6 +470,7 @@ private:
     void sampleInputs(void);
     void updateWindowPosAndSize(void);
     bool initOpenGLFunctionPointers(void);
+    void invalidateOpenGLFunctionPointers(void);
 };
 
 DirectImpl implementor;
@@ -519,11 +574,23 @@ bool DirectImpl::enumerateModes(int32_t entry_index, int32_t *width, int32_t *he
 // the resolution we want to use when in full screen
 bool DirectImpl::setFullScreenVideoResolution(int32_t width, int32_t height)
 {
-    if (glfwGetWindowMonitor(window_) != nullptr) {
-        glfwSetWindowSize(window_, width, height);
-    }
     fs_width_ = width;
     fs_height_ = height;
+    if (glfwGetWindowMonitor(window_) != nullptr) {
+#ifdef _WIN32    
+        glfwSetWindowSize(window_, width, height);
+#else
+        changeToFromWindowedMode(true);  
+
+        timespec tts;
+        
+        tts.tv_sec = 0;
+        tts.tv_nsec = 500000000;
+        nanosleep(&tts, nullptr);
+
+        changeToFromWindowedMode(false);  
+#endif
+    }
     return(true);
 }
 
@@ -543,6 +610,7 @@ bool DirectImpl::changeToFromWindowedMode(bool windowed)
         if (primary_ == nullptr) return(false);
         glfwSetWindowMonitor(window_, primary_, 0, 0, fs_width_, fs_height_, GLFW_DONT_CARE);
     }
+    glfwSwapInterval(1);
     return(true);
 }
 
@@ -631,16 +699,27 @@ bool DirectImpl::startSoundSource(int32_t chunk_samples, int32_t rate, ISoundSyn
     if (sound_source_ != nullptr) shutdownSoundSource();
     sound_source_ = callback;
     samples_count_ = chunk_samples;
+#ifdef _WIN32    
     if (audio_queue_.Init(glfwGetWin32Window(window_), chunk_samples * 2, rate, sound_callback) == FAIL) {
         sound_source_ = nullptr;
         return(false);
     }
+#else    
+    if (!linux_audio_.init(chunk_samples, rate, callback)) {
+        sound_source_ = nullptr;
+        return(false);
+    }
+#endif
     return(true);
 }
 
 void DirectImpl::shutdownSoundSource()
 {
+#ifdef _WIN32    
     audio_queue_.Shutdown();
+#else
+    linux_audio_.shutdown();
+#endif    
     sound_source_ = nullptr;
 }
 
@@ -892,10 +971,14 @@ bool DirectImpl::didLooseContext()
 
 int32_t DirectImpl::getAvailableMemory() const         // Mbytes, returns 0 if unsupported on the platform.
 {
+#ifdef _WIN32    
     MEMORYSTATUSEX statex;
     statex.dwLength = sizeof(statex);
-    GlobalMemoryStatusEx(&statex);
+    GlobalMemoryStatusEx(&statex);    
     return((int32_t)(statex.ullTotalPhys / (1024*1024)));
+#else
+    return(0);
+#endif    
 }
 
 void DirectImpl::run(IMmApp *the_app, const char *win_title, int32_t win_flags, int32_t win_width, int32_t win_height)
@@ -946,7 +1029,9 @@ void DirectImpl::run(IMmApp *the_app, const char *win_title, int32_t win_flags, 
 
     if (the_app->initApplication(this)) {
         while (true) {
+#ifdef _WIN32            
             audio_queue_.RestoreLostBuffers();
+#endif            
             if (glfwWindowShouldClose(window_)) {
                 if (the_app->canExit()) break;
                 glfwSetWindowShouldClose(window_, GLFW_FALSE);
@@ -973,6 +1058,7 @@ void DirectImpl::run(IMmApp *the_app, const char *win_title, int32_t win_flags, 
     shutdownSoundSource();
     glfwDestroyWindow(window_);
     glfwTerminate();
+    invalidateOpenGLFunctionPointers();
 }
 
 void DirectImpl::onMonitorDisconnect(GLFWmonitor *monitor)
@@ -1109,6 +1195,43 @@ bool DirectImpl::initOpenGLFunctionPointers(void)
 {
     bool result = true;
 
+    // GL 1.0
+    result &= (glGetError = (PFNGLGETERRORPROC)glfwGetProcAddress("glGetError")) != NULL;
+    result &= (glGetIntegerv = (PFNGLGETINTEGERVPROC)glfwGetProcAddress("glGetIntegerv")) != NULL;
+    result &= (glGetString = (PFNGLGETSTRINGPROC)glfwGetProcAddress("glGetString")) != NULL;
+    result &= (glTexImage2D = (PFNGLTEXIMAGE2DPROC)glfwGetProcAddress("glTexImage2D")) != NULL;
+    result &= (glTexParameteri = (PFNGLTEXPARAMETERIPROC)glfwGetProcAddress("glTexParameteri")) != NULL;
+    result &= (glViewport = (PFNGLVIEWPORTPROC)glfwGetProcAddress("glViewport")) != NULL;
+    result &= (glDepthRange = (PFNGLDEPTHRANGEPROC)glfwGetProcAddress("glDepthRange")) != NULL;
+    result &= (glScissor = (PFNGLSCISSORPROC)glfwGetProcAddress("glScissor")) != NULL;
+    result &= (glLineWidth = (PFNGLLINEWIDTHPROC)glfwGetProcAddress("glLineWidth")) != NULL;
+    result &= (glFrontFace = (PFNGLFRONTFACEPROC)glfwGetProcAddress("glFrontFace")) != NULL;
+    result &= (glCullFace = (PFNGLCULLFACEPROC)glfwGetProcAddress("glCullFace")) != NULL;
+    result &= (glStencilFunc = (PFNGLSTENCILFUNCPROC)glfwGetProcAddress("glStencilFunc")) != NULL;
+    result &= (glStencilOp = (PFNGLSTENCILOPPROC)glfwGetProcAddress("glStencilOp")) != NULL;
+    result &= (glColorMask = (PFNGLCOLORMASKPROC)glfwGetProcAddress("glColorMask")) != NULL;
+    result &= (glDepthMask = (PFNGLDEPTHMASKPROC)glfwGetProcAddress("glDepthMask")) != NULL;
+    result &= (glStencilMask = (PFNGLSTENCILMASKPROC)glfwGetProcAddress("glStencilMask")) != NULL;
+    result &= (glEnable = (PFNGLENABLEPROC)glfwGetProcAddress("glEnable")) != NULL;
+    result &= (glDisable = (PFNGLDISABLEPROC)glfwGetProcAddress("glDisable")) != NULL;
+    result &= (glClearColor = (PFNGLCLEARCOLORPROC)glfwGetProcAddress("glClearColor")) != NULL;
+    result &= (glClearDepth = (PFNGLCLEARDEPTHPROC)glfwGetProcAddress("glClearDepth")) != NULL;
+    result &= (glClearStencil = (PFNGLCLEARSTENCILPROC)glfwGetProcAddress("glClearStencil")) != NULL;
+    result &= (glReadPixels = (PFNGLREADPIXELSPROC)glfwGetProcAddress("glReadPixels")) != NULL;
+    result &= (glClear = (PFNGLCLEARPROC)glfwGetProcAddress("glClear")) != NULL;
+    result &= (glFlush = (PFNGLFLUSHPROC)glfwGetProcAddress("glFlush")) != NULL;
+    result &= (glDepthFunc = (PFNGLDEPTHFUNCPROC)glfwGetProcAddress("glDepthFunc")) != NULL;
+    result &= (glBlendFunc = (PFNGLBLENDFUNCPROC)glfwGetProcAddress("glBlendFunc")) != NULL;
+    result &= (glFinish = (PFNGLFINISHPROC)glfwGetProcAddress("glFinish")) != NULL;
+
+    // GL 1.1
+    result &= (glDeleteTextures = (PFNGLDELETETEXTURESPROC)glfwGetProcAddress("glDeleteTextures")) != NULL;
+    result &= (glGenTextures = (PFNGLGENTEXTURESPROC)glfwGetProcAddress("glGenTextures")) != NULL;
+    result &= (glBindTexture = (PFNGLBINDTEXTUREPROC)glfwGetProcAddress("glBindTexture")) != NULL;
+    result &= (glPolygonOffset = (PFNGLPOLYGONOFFSETPROC)glfwGetProcAddress("glPolygonOffset")) != NULL;
+    result &= (glDrawArrays = (PFNGLDRAWARRAYSPROC)glfwGetProcAddress("glDrawArrays")) != NULL;
+    result &= (glDrawElements = (PFNGLDRAWELEMENTSPROC)glfwGetProcAddress("glDrawElements")) != NULL;
+
     // GL 1.2
     result &= (glDrawRangeElements = (PFNGLDRAWRANGEELEMENTSPROC)glfwGetProcAddress("glDrawRangeElements")) != NULL;
     result &= (glTexImage3D = (PFNGLTEXIMAGE3DPROC)glfwGetProcAddress("glTexImage3D")) != NULL;
@@ -1241,6 +1364,17 @@ bool DirectImpl::initOpenGLFunctionPointers(void)
     result &= (glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)glfwGetProcAddress("glGenVertexArrays")) != NULL;
     result &= (glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)glfwGetProcAddress("glBindVertexArray")) != NULL;
     return result;
+}
+
+void DirectImpl::invalidateOpenGLFunctionPointers(void)
+{
+    glDeleteTextures = dummyGlDeleteTextures;
+    glDeleteQueries = dummyGlDeleteQueries;
+    glDeleteBuffers = dummyGlDeleteBuffers;
+    glDeleteProgram = dummyGlDeleteProgram;
+    glDeleteShader = dummyGlDeleteShader;
+    glDeleteRenderbuffers = dummyGlDeleteRenderBuffers;
+    glDeleteFramebuffers = dummyGlDeleteFrameBuffers;
 }
 
 } // namespace

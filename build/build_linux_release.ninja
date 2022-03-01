@@ -7,4 +7,4 @@ cfg = release
 
 bin_target = ../../bin/linux/f3gui
 
-include ../build_aux.ninja
+include ../build_aux_linux.ninja

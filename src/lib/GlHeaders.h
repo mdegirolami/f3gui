@@ -1,10 +1,27 @@
 #ifndef __GLHEADERS_H
 #define __GLHEADERS_H
 
+#ifdef _WIN32
 #include <Windows.h>
-#include <gl\GL.h>
-#define GL_VERSION_1_0 1    // exclude: already in windows
-#define GL_VERSION_1_1 1    // exclude: already in windows
+
+typedef unsigned __int64 uint64_t;
+typedef uint64_t GLuint64;
+
+typedef __int64 int64_t;
+typedef int64_t GLint64;
+
+#else 
+
+#include <stdint.h>
+
+typedef uint64_t GLuint64;
+typedef int64_t GLint64;
+
+#endif
+
+//#include <gl\GL.h>
+// #define GL_VERSION_1_0 1    // exclude: already in windows
+// #define GL_VERSION_1_1 1    // exclude: already in windows
 #define GL_VERSION_3_2 1    // exclude above 3.1 (not supported by the context)
 #define GL_VERSION_3_3 1
 
@@ -15,12 +32,6 @@
 #define GL_VERSION_4_4 1
 #define GL_VERSION_4_5 1
 
-typedef unsigned __int64 uint64_t;
-typedef uint64_t GLuint64;
-
-typedef __int64 int64_t;
-typedef int64_t GLint64;
-
 //#define GL_ARB_bindless_texture 1
 #define GL_ARB_cl_event 1
 //#define GL_ARB_gpu_shader_int64 1
@@ -29,8 +40,49 @@ typedef int64_t GLint64;
 
 #include "glcorearb.h"
 
+const int GL_LUMINANCE = 0x1909;
+const int GL_LUMINANCE_ALPHA = 0x190A;
+
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE    // from glext.h
 
+// GL 1.0
+extern PFNGLGETERRORPROC glGetError;
+extern PFNGLGETINTEGERVPROC glGetIntegerv;
+extern PFNGLGETSTRINGPROC glGetString;
+extern PFNGLTEXIMAGE2DPROC glTexImage2D;
+extern PFNGLTEXPARAMETERIPROC glTexParameteri;
+extern PFNGLVIEWPORTPROC glViewport;
+extern PFNGLDEPTHRANGEPROC glDepthRange;
+extern PFNGLSCISSORPROC glScissor;
+extern PFNGLLINEWIDTHPROC glLineWidth;
+extern PFNGLFRONTFACEPROC glFrontFace;
+extern PFNGLCULLFACEPROC glCullFace;
+extern PFNGLSTENCILFUNCPROC glStencilFunc;
+extern PFNGLSTENCILOPPROC glStencilOp;
+extern PFNGLCOLORMASKPROC glColorMask;
+extern PFNGLDEPTHMASKPROC glDepthMask;
+extern PFNGLSTENCILMASKPROC glStencilMask;
+extern PFNGLENABLEPROC glEnable;
+extern PFNGLDISABLEPROC glDisable;
+extern PFNGLCLEARCOLORPROC glClearColor;
+extern PFNGLCLEARDEPTHPROC glClearDepth;
+extern PFNGLCLEARSTENCILPROC glClearStencil;
+extern PFNGLREADPIXELSPROC glReadPixels;
+extern PFNGLCLEARPROC glClear;
+extern PFNGLFLUSHPROC glFlush;
+extern PFNGLDEPTHFUNCPROC glDepthFunc;
+extern PFNGLBLENDFUNCPROC glBlendFunc;
+extern PFNGLFINISHPROC glFinish;
+
+// GL 1.1
+extern PFNGLDELETETEXTURESPROC glDeleteTextures;
+extern PFNGLGENTEXTURESPROC glGenTextures;
+extern PFNGLBINDTEXTUREPROC glBindTexture;
+extern PFNGLPOLYGONOFFSETPROC glPolygonOffset;
+extern PFNGLDRAWARRAYSPROC glDrawArrays;
+extern PFNGLDRAWELEMENTSPROC glDrawElements;
+
+// GL 1.2
 extern PFNGLBLENDCOLORPROC glBlendColor;
 extern PFNGLBLENDEQUATIONPROC glBlendEquation;
 extern PFNGLDRAWRANGEELEMENTSPROC glDrawRangeElements;

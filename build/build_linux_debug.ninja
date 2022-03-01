@@ -8,4 +8,4 @@ dbg_suffix = _d
 
 bin_target = ../../bin/linux/f3gui_d
 
-include ../build_aux.ninja
+include ../build_aux_linux.ninja

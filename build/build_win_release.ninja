@@ -6,4 +6,4 @@ platform = win
 cfg = release
 
 bin_target = ../../bin/win/f3gui.exe
-include ../build_aux.ninja
+include ../build_aux_win.ninja

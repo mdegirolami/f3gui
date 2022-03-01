@@ -264,6 +264,13 @@ void Buffer::getF32Component(std::vector<float> *values, int32_t component_idx, 
 // RAII gl objects wrappers
 //
 //////////////////
+CVertexBuffer::~CVertexBuffer() 
+{ 
+    if (buffer_ != 0) {
+        glDeleteBuffers(1, &buffer_); 
+    }
+}
+
 bool CVertexBuffer::fill(const Buffer &content)
 {
     const std::vector<uint8_t> *data = content.getContent();

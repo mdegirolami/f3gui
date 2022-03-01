@@ -19,7 +19,7 @@ class CVertexBuffer : public IVertexBuffer {
     int32_t vertex_size_;
 public:
     CVertexBuffer(GLuint bufid) { buffer_ = bufid; vertex_size_ = 0; }
-    virtual ~CVertexBuffer() { if (buffer_ != 0) glDeleteBuffers(1, &buffer_); }
+    virtual ~CVertexBuffer();
     virtual void *get__id() const { return(nullptr); }
     virtual bool fill(const Buffer &content);
     virtual bool fillF32(const std::vector<float> &content, const std::vector<std::string> &names, const std::vector<int32_t> &dimensions);

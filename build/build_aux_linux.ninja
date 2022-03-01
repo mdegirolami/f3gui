@@ -15,7 +15,7 @@ cpp  = ../../src
 
 # options for all the configurations/platforms
 cc_flags = -fsigned-char -std=c++11 $cc_extra_flags -I $cpp -I $temp -I $singinc -I ../../libs/glfw/include -I ../../modules/inc -fmax-errors=20
-ln_libs = $singlib $ln_extra_libs
+ln_libs = $singlib $ln_extra_libs -ldl -lX11
 
 #rules
 rule sc
@@ -29,7 +29,7 @@ rule cc
   command = g++ -MD -MF $out.d $cc_flags -c $in -o $out
 
 rule ln
-  command = g++ -std=c++11 -mwindows -o $out $in $ln_libs
+  command = g++ -std=c++11 -no-pie -o $out $in $ln_libs
 
 rule aa
   command = ar rvs $out $in
@@ -45,15 +45,15 @@ build direct.o        : cc $cpp/lib/direct.cpp
 build main.o          : cc $cpp/app/main.cpp
 build gles.o          : cc $cpp/lib/gles.cpp
 build gl_objects.o    : cc $cpp/lib/gl_objects.cpp
-build WinAudioQueue.o : cc $cpp/lib/WinAudioQueue.cpp
+build linux_audio.o   : cc $cpp/lib/linux/linux_audio.cpp
 
 #build the library
 directlib_target = ../../modules/bin/direct/$platform/direct$dbg_suffix.a
 
-build $directlib_target: aa direct.o gles.o gl_objects.o WinAudioQueue.o
+build $directlib_target: aa direct.o gles.o gl_objects.o linux_audio.o
 
 #link
-build $bin_target: ln test.o main.o $directlib_target ../../libs/glfw/$platform/libglfw3.a
+build $bin_target: ln main.o test.o $directlib_target ../../libs/glfw/$platform/libglfw3.a
 
 default $bin_target
 

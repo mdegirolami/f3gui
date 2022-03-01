@@ -7,4 +7,4 @@ cfg = debug
 dbg_suffix = _d
 
 bin_target = ../../bin/win/f3gui_d.exe
-include ../build_aux.ninja
+include ../build_aux_win.ninja
