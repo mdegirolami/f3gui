@@ -9,7 +9,7 @@ class ISoundSynth {
 public:
     virtual ~ISoundSynth() {}
     virtual void *get__id() const = 0;
-    virtual void fillSamples(int32_t samples_count, std::vector<int16_t> *samples) = 0;
+    virtual void fillSamples(int32_t channels, int32_t frames_count, std::vector<int16_t> *samples) = 0;
 };
 
 enum class CursorMode {standard, disabled};
@@ -88,6 +88,17 @@ public:
     float endy_;
 };
 
+class SoundCaps final {
+public:
+    SoundCaps();
+    int32_t min_channels_;    
+    int32_t max_channels_;
+    int32_t min_rate_;
+    int32_t max_rate_;
+    int32_t min_frames_;
+    int32_t max_frames_;
+};
+
 class IMmAppServices {
 public:
     virtual ~IMmAppServices() {}
@@ -126,8 +137,9 @@ public:
     virtual int32_t getScreenRotation() const = 0;
 
     // SOUND
-    virtual bool startSoundSource(int32_t chunk_samples, int32_t rate, ISoundSynth *callback) = 0;
+    virtual bool startSoundSource(int32_t channels, int32_t rate, int32_t frames_in_buffer, ISoundSynth *callback) = 0;
     virtual void shutdownSoundSource() = 0;
+    virtual bool getSoundCaps(SoundCaps *caps) = 0;
 
     // INPUT
     virtual bool isKeyDown(int32_t key_id) const = 0;

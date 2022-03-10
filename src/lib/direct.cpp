@@ -13,6 +13,7 @@
 #include <GLFW/glfw3native.h>
 #else
 #include <unistd.h>
+#include <sys/sysinfo.h>
 #include "linux/linux_audio.h"
 #endif
 
@@ -323,6 +324,13 @@ void dummyGlDeleteShader(GLuint shader) {}
 void dummyGlDeleteRenderBuffers(GLsizei n, const GLuint *renderbuffers) {}
 void dummyGlDeleteFrameBuffers(GLsizei n, const GLuint *framebuffers) {}
 
+SoundCaps::SoundCaps()
+{
+    min_channels_ = max_channels_ = 0;
+    min_rate_ = max_rate_ = 0;
+    min_frames_ = max_frames_ = 0;
+}
+
 class DirectImpl : public IMmAppServices
 {
 public:
@@ -362,8 +370,9 @@ public:
     virtual int32_t getScreenRotation() const;
 
     // SOUND
-    virtual bool startSoundSource(int32_t chunk_samples, int32_t rate, ISoundSynth *callback);
+    virtual bool startSoundSource(int32_t channels, int32_t rate, int32_t frames_in_buffer, ISoundSynth *callback);
     virtual void shutdownSoundSource();
+    virtual bool getSoundCaps(SoundCaps *caps);
 
     // INPUT
     virtual bool isKeyDown(int32_t key_id) const;
@@ -435,12 +444,12 @@ private:
     // sound
 #ifdef _WIN32
     WinAudioQueue           audio_queue_;
-#else
-    LinuxAudioAdapter       linux_audio_;
-#endif    
     ISoundSynth             *sound_source_;
     std::vector<int16_t>    samples_;
     int                     samples_count_;
+#else
+    LinuxAudioAdapter       linux_audio_;
+#endif    
 
     // keyboard
     uint8_t     keys_[GLFW_KEY_LAST + 1];
@@ -543,7 +552,9 @@ DirectImpl::DirectImpl()
     windowed_height_ = 480;
 
     // sound
+#ifdef _WIN32    
     sound_source_ = nullptr;
+#endif
 
     // keyboard
     fifo_in_ = fifo_out_ = fifo_cnt_ = 0;
@@ -693,20 +704,19 @@ int32_t DirectImpl::getScreenRotation() const
 }
 
 // SOUND
-bool DirectImpl::startSoundSource(int32_t chunk_samples, int32_t rate, ISoundSynth *callback)
+bool DirectImpl::startSoundSource(int32_t channels, int32_t rate, int32_t frames_in_buffer, ISoundSynth *callback)
 {
-    if (chunk_samples < 128 || chunk_samples > 100000 || rate < 1024 || rate > 100000 || callback == nullptr) return(false);
+    if (callback == nullptr) return(false);
+#ifdef _WIN32    
     if (sound_source_ != nullptr) shutdownSoundSource();
     sound_source_ = callback;
-    samples_count_ = chunk_samples;
-#ifdef _WIN32    
+    samples_count_ = frames_in_buffer;
     if (audio_queue_.Init(glfwGetWin32Window(window_), chunk_samples * 2, rate, sound_callback) == FAIL) {
         sound_source_ = nullptr;
         return(false);
     }
 #else    
-    if (!linux_audio_.init(chunk_samples, rate, callback)) {
-        sound_source_ = nullptr;
+    if (!linux_audio_.init(channels, rate, frames_in_buffer, callback)) {
         return(false);
     }
 #endif
@@ -717,10 +727,15 @@ void DirectImpl::shutdownSoundSource()
 {
 #ifdef _WIN32    
     audio_queue_.Shutdown();
+    sound_source_ = nullptr;
 #else
     linux_audio_.shutdown();
 #endif    
-    sound_source_ = nullptr;
+}
+
+bool DirectImpl::getSoundCaps(SoundCaps *caps)
+{
+    return(linux_audio_.getCapabilities(caps));
 }
 
 // INPUT
@@ -977,7 +992,11 @@ int32_t DirectImpl::getAvailableMemory() const         // Mbytes, returns 0 if u
     GlobalMemoryStatusEx(&statex);    
     return((int32_t)(statex.ullTotalPhys / (1024*1024)));
 #else
-    return(0);
+    struct sysinfo info;
+    if (sysinfo(&info) != 0) {
+        return(0);
+    };
+    return(info.totalram / 0x100000);
 #endif    
 }
 
@@ -1097,11 +1116,13 @@ void DirectImpl::onFocusLost(void)
 
 void DirectImpl::onSoundBufferRequest(uint8_t *buffer)
 {
+#ifdef _WIN32    
     if (sound_source_ != nullptr) {
         samples_.clear();
-        sound_source_->fillSamples(samples_count_, &samples_);
+        sound_source_->fillSamples(2, samples_count_, &samples_);
         memcpy(buffer, samples_.data(), samples_count_ * 2);
     }
+#endif    
 }
 
 void DirectImpl::doDisplayModesEnumeration(void)

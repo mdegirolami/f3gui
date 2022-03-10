@@ -2,7 +2,7 @@ namespace mmapp;
 requires "direct/gles";
 
 public interface ISoundSynth {
-    fn mut fillSamples(samples_count i32, out samples [*]i16) void;
+    fn mut fillSamples(channels i32, frames_count i32, out samples [*]i16) void;
 }
 
 public enum CursorMode { standard, disabled }
@@ -80,6 +80,16 @@ public:
     var endy f32;
 }
 
+public class SoundCaps {
+public:
+    var min_channels i32;    
+    var max_channels i32;
+    var min_rate i32;
+    var max_rate i32;
+    var min_frames i32;
+    var max_frames i32;
+}
+
 public interface IMmAppServices {
 
     // for each entry_index returns an available full screen video mode. If entry_index is too high returns false
@@ -115,8 +125,9 @@ public interface IMmAppServices {
     fn getScreenRotation() i32;
 
     // SOUND
-    fn mut startSoundSource(chunk_samples i32, rate i32, io callback ISoundSynth) bool;
+    fn mut startSoundSource(channels i32, rate i32, frames_in_buffer i32, io callback ISoundSynth) bool;
     fn mut shutdownSoundSource() void;
+    fn getSoundCaps(out caps SoundCaps) bool;
 
     // INPUT
     fn     isKeyDown(key_id i32) bool;

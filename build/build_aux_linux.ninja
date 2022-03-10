@@ -14,7 +14,7 @@ sing = ../../sing
 cpp  = ../../src
 
 # options for all the configurations/platforms
-cc_flags = -fsigned-char -std=c++11 $cc_extra_flags -I $cpp -I $temp -I $singinc -I ../../libs/glfw/include -I ../../modules/inc -fmax-errors=20
+cc_flags = -fsigned-char -std=c++11 $cc_extra_flags -I $cpp -I $cpp/lib -I $temp -I $singinc -I ../../libs/glfw/include -I ../../modules/inc -fmax-errors=20
 ln_libs = $singlib $ln_extra_libs -ldl -lX11
 
 #rules
@@ -47,10 +47,21 @@ build gles.o          : cc $cpp/lib/gles.cpp
 build gl_objects.o    : cc $cpp/lib/gl_objects.cpp
 build linux_audio.o   : cc $cpp/lib/linux/linux_audio.cpp
 
+# cpp->obj (tinyalsa)
+build limits.o        : cc $cpp/lib/tinyalsa/limits.c
+build mixer_hw.o      : cc $cpp/lib/tinyalsa/mixer_hw.c
+build mixer_plugin.o  : cc $cpp/lib/tinyalsa/mixer_plugin.c
+build mixer.o         : cc $cpp/lib/tinyalsa/mixer.c
+build pcm_hw.o        : cc $cpp/lib/tinyalsa/pcm_hw.c
+build pcm_plugin.o    : cc $cpp/lib/tinyalsa/pcm_plugin.c
+build pcm.o           : cc $cpp/lib/tinyalsa/pcm.c
+build snd_card_plugin.o : cc $cpp/lib/tinyalsa/snd_card_plugin.c
+build pcm-test.o      : cc $cpp/lib/tinyalsa/pcm-test.c
+
 #build the library
 directlib_target = ../../modules/bin/direct/$platform/direct$dbg_suffix.a
 
-build $directlib_target: aa direct.o gles.o gl_objects.o linux_audio.o
+build $directlib_target: aa direct.o gles.o gl_objects.o linux_audio.o pcm-test.o pcm.o pcm_hw.o snd_card_plugin.o
 
 #link
 build $bin_target: ln main.o test.o $directlib_target ../../libs/glfw/$platform/libglfw3.a
