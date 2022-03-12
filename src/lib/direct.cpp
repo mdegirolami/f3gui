@@ -421,7 +421,6 @@ public:
     void onScroll(float xx, float yy);
     void onDrop(int count, const char** paths);
     void onFocusLost(void);
-    void onSoundBufferRequest(uint8_t *buffer);
 
 private:
 
@@ -443,12 +442,9 @@ private:
 
     // sound
 #ifdef _WIN32
-    WinAudioQueue           audio_queue_;
-    ISoundSynth             *sound_source_;
-    std::vector<int16_t>    samples_;
-    int                     samples_count_;
+    WinAudioQueue       sound_emitter_;
 #else
-    LinuxAudioAdapter       linux_audio_;
+    LinuxAudioAdapter   sound_emitter_;
 #endif    
 
     // keyboard
@@ -529,11 +525,6 @@ void focus_callback(GLFWwindow* window, int focused)
     }
 }
 
-void sound_callback(uint8_t *buffer)
-{
-    implementor.onSoundBufferRequest(buffer);
-}
-
 // DirectImpl implementation
 DirectImpl::DirectImpl()
 {
@@ -550,11 +541,6 @@ DirectImpl::DirectImpl()
     window_ypos_ = 0;
     windowed_width_ = 640;
     windowed_height_ = 480;
-
-    // sound
-#ifdef _WIN32    
-    sound_source_ = nullptr;
-#endif
 
     // keyboard
     fifo_in_ = fifo_out_ = fifo_cnt_ = 0;
@@ -708,34 +694,25 @@ bool DirectImpl::startSoundSource(int32_t channels, int32_t rate, int32_t frames
 {
     if (callback == nullptr) return(false);
 #ifdef _WIN32    
-    if (sound_source_ != nullptr) shutdownSoundSource();
-    sound_source_ = callback;
-    samples_count_ = frames_in_buffer;
-    if (audio_queue_.Init(glfwGetWin32Window(window_), chunk_samples * 2, rate, sound_callback) == FAIL) {
-        sound_source_ = nullptr;
-        return(false);
-    }
+    bool result = sound_emitter_.init(glfwGetWin32Window(window_), channels, rate, frames_in_buffer, callback);
 #else    
-    if (!linux_audio_.init(channels, rate, frames_in_buffer, callback)) {
-        return(false);
-    }
+    bool result = sound_emitter_.init(channels, rate, frames_in_buffer, callback);
 #endif
-    return(true);
+    return(result);
 }
 
 void DirectImpl::shutdownSoundSource()
 {
-#ifdef _WIN32    
-    audio_queue_.Shutdown();
-    sound_source_ = nullptr;
-#else
-    linux_audio_.shutdown();
-#endif    
+    sound_emitter_.shutdown();
 }
 
 bool DirectImpl::getSoundCaps(SoundCaps *caps)
 {
-    return(linux_audio_.getCapabilities(caps));
+#ifdef _WIN32    
+    return(sound_emitter_.getCapabilities(glfwGetWin32Window(window_), caps));
+#else
+    return(sound_emitter_.getCapabilities(caps));
+#endif    
 }
 
 // INPUT
@@ -1049,7 +1026,7 @@ void DirectImpl::run(IMmApp *the_app, const char *win_title, int32_t win_flags, 
     if (the_app->initApplication(this)) {
         while (true) {
 #ifdef _WIN32            
-            audio_queue_.RestoreLostBuffers();
+            sound_emitter_.restoreLostBuffers();
 #endif            
             if (glfwWindowShouldClose(window_)) {
                 if (the_app->canExit()) break;
@@ -1112,17 +1089,6 @@ void DirectImpl::onDrop(int count, const char** paths)
 void DirectImpl::onFocusLost(void)
 {
     focus_lost_ = true;
-}
-
-void DirectImpl::onSoundBufferRequest(uint8_t *buffer)
-{
-#ifdef _WIN32    
-    if (sound_source_ != nullptr) {
-        samples_.clear();
-        sound_source_->fillSamples(2, samples_count_, &samples_);
-        memcpy(buffer, samples_.data(), samples_count_ * 2);
-    }
-#endif    
 }
 
 void DirectImpl::doDisplayModesEnumeration(void)

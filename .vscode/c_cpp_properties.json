@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/x86_64-w64-mingw32/include",
-                "/home/maurizio/.vscode/extensions/mauriziodegirolami.vscode-sing-0.40.3/sdk/inc"
+                "c:/Users/degimau/.vscode/extensions/mauriziodegirolami.vscode-sing-0.40.3/sdk/inc"
             ],
             "defines": [
                 "_DEBUG",
@@ -23,7 +23,7 @@
                 "${workspaceFolder}/**",
                 "/usr/local/include",
                 "/usr/include",
-                "/home/maurizio/.vscode/extensions/mauriziodegirolami.vscode-sing-0.40.3/sdk/inc"
+                "c:/Users/degimau/.vscode/extensions/mauriziodegirolami.vscode-sing-0.40.3/sdk/inc"
             ],
             "defines": [
                 "_DEBUG",

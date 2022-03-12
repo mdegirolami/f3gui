@@ -1,5 +1,5 @@
 #define STRICT
-#include "win/WinAudioQueue.h"
+#include "WinAudioQueue.h"
 //#include "common/common_def.h"
 //#include "common/dbglog.h"
 
@@ -9,8 +9,6 @@ static HANDLE   g_notification_event;
 static bool     g_proc_done;
 
 static DWORD WINAPI NotificationProc( LPVOID lpParameter );
-
-static WinAudioQueue    *g_TheWinAudioQueue;
 
 WinAudioQueue::WinAudioQueue()
 {
@@ -26,10 +24,10 @@ WinAudioQueue::WinAudioQueue()
 
 WinAudioQueue::~WinAudioQueue()
 {
-    Shutdown();
+    shutdown();
 }
 
-int WinAudioQueue::Init(HWND hWnd, DWORD chunk_bytes, DWORD rate, void (*callback)(BYTE*))
+bool WinAudioQueue::init(HWND hWnd, int32_t channels, int32_t rate, int32_t frames_in_buffer, ISoundSynth *callback)
 {
     HRESULT             hr;
     void                *dumptr;
@@ -39,49 +37,20 @@ int WinAudioQueue::Init(HWND hWnd, DWORD chunk_bytes, DWORD rate, void (*callbac
     LPDIRECTSOUNDNOTIFY notify_interface; 
     DSBPOSITIONNOTIFY   position_notify[2];
     DWORD               mixsize;
-    DSCAPS              caps;
 
-    if (!_first_init_done) {
-        if (hWnd == NULL) return(FAIL);
-
-        g_TheWinAudioQueue = this;
-
-	    // Create the direct sound object.
-        hr = CoCreateInstance(CLSID_DirectSound8, NULL, CLSCTX_INPROC_SERVER,
-                              IID_IDirectSound8, &dumptr);
-        _gpds = (LPDIRECTSOUND8)dumptr;
-        if (!SUCCEEDED(hr) || (NULL == _gpds)) {
-            error_ = "\nError: Failed to create DirectSound object";
-            return FAIL;
-        }
-        // Initialize (Only if not created by DirectSoundCreate)
-        hr = _gpds->Initialize(NULL);
-        if (!SUCCEEDED(hr) || (NULL == _gpds)) {
-            error_ = "\nError: Failed to init DirectSound object";
-            return(FAIL);
-        }
-        caps.dwSize = sizeof(caps);
-        hr = _gpds->GetCaps(&caps);
-        if (SUCCEEDED(hr)) {
-            _min_rate = caps.dwMinSecondarySampleRate;
-            _max_rate = caps.dwMaxSecondarySampleRate;
-        }
-
-        // Note we need to set the level to priority to set the
-        // format of the primary buffer
-        hr = _gpds->SetCooperativeLevel(hWnd, DSSCL_PRIORITY);
-        if (!SUCCEEDED(hr)) {
-            error_ = "\nError: DirectSound SetCooperativeLevel failed";
-            return(FAIL);
-        }
-        _first_init_done = true;
+    if (!first_init(hWnd)) {
+        return(false);
     }
 
     if (callback == nullptr || _max_rate > 0 && (rate < _min_rate || rate > _max_rate)) {
         error_ = "\nError: Unsupported DirectSound sample rate";
-        return(FAIL);
+        return(false);
     }
-    _chunk_size = chunk_bytes;
+
+    shutdown();
+    _channels = channels;
+    _period = frames_in_buffer >> 1;
+    _chunk_size = channels * _period * 2;  // half the buffer size
     _callback = callback;
 
     // Set up the primary direct sound buffer.
@@ -98,9 +67,9 @@ int WinAudioQueue::Init(HWND hWnd, DWORD chunk_bytes, DWORD rate, void (*callbac
 
     // Set the primary buffer format
     wfx.wFormatTag = WAVE_FORMAT_PCM;
-    wfx.nChannels = 2;
+    wfx.nChannels = _channels;
     wfx.nSamplesPerSec = rate;
-    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * 4;
+    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * channels * 2;
     wfx.nBlockAlign = 4;    // 16 bit * 2
     wfx.wBitsPerSample = 16;
     wfx.cbSize = 0;
@@ -131,7 +100,7 @@ int WinAudioQueue::Init(HWND hWnd, DWORD chunk_bytes, DWORD rate, void (*callbac
     // CREATE THE SW MIXER THREAD
     g_proc_done = false;
     _thread_handle = CreateThread(NULL, 0, NotificationProc, 
-                                  NULL, 0, &_thread_id);
+                                  this, 0, &_thread_id);
     if (_thread_handle == NULL) {
         error_ = "\nError: Cannot create the audio mixer thread.";
         goto dsinit_err;
@@ -168,17 +137,62 @@ int WinAudioQueue::Init(HWND hWnd, DWORD chunk_bytes, DWORD rate, void (*callbac
     memset(dumptr, 0, mixsize);
     _sMix->Unlock(dumptr, mixsize, NULL, 0);
 
+    samples_.clear();
+    samples_.reserve(_period * _channels);
+
     // RUN THE BUFFER
     _sMix->Play(0, 0, DSBPLAY_LOOPING);
     _thread_is_running = false;
-    return 0;
+    return(true);
 
 dsinit_err:
-    Shutdown();
-    return(FAIL);
+    shutdown();
+    return(false);
 }
 
-void WinAudioQueue::RestoreLostBuffers(void)
+bool WinAudioQueue::first_init(HWND hWnd)
+{
+    HRESULT hr;
+    void    *dumptr;
+    DSCAPS caps;
+
+    if (!_first_init_done) {
+        if (hWnd == NULL) return(false);
+
+	    // Create the direct sound object.
+        hr = CoCreateInstance(CLSID_DirectSound8, NULL, CLSCTX_INPROC_SERVER,
+                              IID_IDirectSound8, &dumptr);
+        _gpds = (LPDIRECTSOUND8)dumptr;
+        if (!SUCCEEDED(hr) || (NULL == _gpds)) {
+            error_ = "\nError: Failed to create DirectSound object";
+            return(false);
+        }
+        // Initialize (Only if not created by DirectSoundCreate)
+        hr = _gpds->Initialize(NULL);
+        if (!SUCCEEDED(hr) || (NULL == _gpds)) {
+            error_ = "\nError: Failed to init DirectSound object";
+            return(false);
+        }
+        caps.dwSize = sizeof(caps);
+        hr = _gpds->GetCaps(&caps);
+        if (SUCCEEDED(hr)) {
+            _min_rate = caps.dwMinSecondarySampleRate;
+            _max_rate = caps.dwMaxSecondarySampleRate;
+        }
+
+        // Note we need to set the level to priority to set the
+        // format of the primary buffer
+        hr = _gpds->SetCooperativeLevel(hWnd, DSSCL_PRIORITY);
+        if (!SUCCEEDED(hr)) {
+            error_ = "\nError: DirectSound SetCooperativeLevel failed";
+            return(false);
+        }
+        _first_init_done = true;
+    }
+    return(true);
+}
+
+void WinAudioQueue::restoreLostBuffers(void)
 {
     DWORD       status, len1;
     HRESULT     hr;
@@ -195,7 +209,7 @@ void WinAudioQueue::RestoreLostBuffers(void)
     _sMix->Unlock(data1, len1, NULL, 0);
 }
 
-void WinAudioQueue::Shutdown(void)
+void WinAudioQueue::shutdown(void)
 {
     if (!_thread_is_running) {
         error_ = "\nError: Sound mixing thread didn't run !!";
@@ -241,7 +255,7 @@ DWORD WINAPI NotificationProc( LPVOID lpParameter )
         {
             case WAIT_OBJECT_0 + 0:
                 // g_notification_event is signaled
-                g_TheWinAudioQueue->NotifyThread();
+                ((WinAudioQueue*)lpParameter)->NotifyThread();
                 break;
 
             case WAIT_OBJECT_0 + 1:
@@ -276,9 +290,29 @@ void WinAudioQueue::NotifyThread(void)
     }
     hr = _sMix->Lock(ppos, _chunk_size, &buf1, &len1, &buf2, &len2, 0);
     if (SUCCEEDED(hr)) {
-        _callback((BYTE*)buf1);
+        if (_callback != nullptr) {
+            samples_.clear();
+            _callback->fillSamples(_channels, _period, &samples_);
+            memcpy(buf1, samples_.data(), _chunk_size);
+        }
         _sMix->Unlock(buf1, len1, buf2, len2);
     }
+}
+
+bool WinAudioQueue::getCapabilities(HWND hWnd, SoundCaps *caps)
+{
+    if (!first_init(hWnd)) {
+        return(false);
+    }
+    caps->min_rate_ = _min_rate;
+    caps->max_rate_ = _max_rate;
+    caps->min_channels_ = 2;
+    caps->max_channels_ = 2;
+    caps->min_frames_ = DSBSIZE_MIN >> 1;
+    caps->max_frames_ = DSBSIZE_MAX >> 2;
+    if (caps->min_frames_ < 1024) caps->min_frames_ = 1024;
+    if (caps->max_frames_ < 1024) caps->max_frames_ = 1024;
+    return(true);
 }
 
 }

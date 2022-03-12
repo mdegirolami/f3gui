@@ -3,21 +3,12 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-
-typedef unsigned __int64 uint64_t;
-typedef uint64_t GLuint64;
-
-typedef __int64 int64_t;
-typedef int64_t GLint64;
-
-#else 
+#endif
 
 #include <stdint.h>
 
 typedef uint64_t GLuint64;
 typedef int64_t GLint64;
-
-#endif
 
 //#include <gl\GL.h>
 // #define GL_VERSION_1_0 1    // exclude: already in windows

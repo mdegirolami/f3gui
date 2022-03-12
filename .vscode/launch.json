@@ -8,11 +8,13 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/linux/f3gui_d",
-            "args": [],
+            "program": "${workspaceFolder}/bin/win/f3gui_d.exe",
+            "args": [
+            ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/bin/linux",
-            "environment": [],
+            "cwd": "${workspaceFolder}/bin/win",
+            "environment": [
+            ],
             "externalConsole": true,
             "MIMode": "gdb",
             "miDebuggerPath": "gdb",
