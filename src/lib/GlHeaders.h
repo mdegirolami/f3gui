@@ -1,18 +1,13 @@
 #ifndef __GLHEADERS_H
 #define __GLHEADERS_H
 
-#ifdef _WIN32
-#include <Windows.h>
-#endif
-
 #include <stdint.h>
 
 typedef uint64_t GLuint64;
 typedef int64_t GLint64;
 
-//#include <gl\GL.h>
-// #define GL_VERSION_1_0 1    // exclude: already in windows
-// #define GL_VERSION_1_1 1    // exclude: already in windows
+// #define GL_VERSION_1_0 1
+// #define GL_VERSION_1_1 1
 #define GL_VERSION_3_2 1    // exclude above 3.1 (not supported by the context)
 #define GL_VERSION_3_3 1
 
@@ -31,10 +26,12 @@ typedef int64_t GLint64;
 
 #include "glcorearb.h"
 
-const int GL_LUMINANCE = 0x1909;
-const int GL_LUMINANCE_ALPHA = 0x190A;
+#define GL_LUMINANCE        0x1909
+#define GL_LUMINANCE_ALPHA  0x190A
 
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE    // from glext.h
+
+namespace mmapp {
 
 // GL 1.0
 extern PFNGLGETERRORPROC glGetError;
@@ -212,5 +209,7 @@ extern PFNGLGETFRAMEBUFFERATTACHMENTPARAMETERIVPROC glGetFramebufferAttachmentPa
 extern PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 extern PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
 extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+
+} // namespace
 
 #endif

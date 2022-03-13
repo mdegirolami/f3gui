@@ -6,10 +6,6 @@
 #include <windowsx.h>
 #include <dsound.h>
 
-#ifndef FAIL
-#define FAIL -1
-#endif
-
 namespace mmapp {
 
 class WinAudioQueue {

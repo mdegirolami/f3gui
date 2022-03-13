@@ -1,7 +1,5 @@
 #define STRICT
 #include "WinAudioQueue.h"
-//#include "common/common_def.h"
-//#include "common/dbglog.h"
 
 namespace mmapp {
 

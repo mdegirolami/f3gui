@@ -17,6 +17,8 @@
 #include "linux/linux_audio.h"
 #endif
 
+namespace mmapp {
+
 // GL 1.0
 PFNGLGETERRORPROC glGetError = NULL;
 PFNGLGETINTEGERVPROC glGetIntegerv = NULL;
@@ -185,8 +187,6 @@ PFNGLGETFRAMEBUFFERATTACHMENTPARAMETERIVPROC glGetFramebufferAttachmentParameter
 PFNGLGENERATEMIPMAPPROC glGenerateMipmap = NULL;
 PFNGLGENVERTEXARRAYSPROC glGenVertexArrays = NULL;
 PFNGLBINDVERTEXARRAYPROC glBindVertexArray = NULL;
-
-namespace mmapp {
 
 static const int max_modes = 50;
 

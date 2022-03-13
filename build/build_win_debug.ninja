@@ -1,6 +1,6 @@
 cc_extra_flags = -g
 sing_extra_flags = -g
-ln_extra_libs = -lws2_32 -lopengl32 -ldxguid -lgdi32 -lole32
+ln_extra_libs = -lws2_32 -ldxguid -lgdi32 -lole32
 
 platform = win
 cfg = debug
