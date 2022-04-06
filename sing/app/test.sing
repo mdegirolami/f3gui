@@ -201,12 +201,15 @@ fn App.stepApplication(io mm direct.IMmAppServices, io gl gles.IGlEs) bool
     gl.colorMask(true, true, true, true);
 
     gl.useVbuffer(this.v_buffer);
-    gl.useProgram(this.program);
-    let location = this.program.getUniformLocation("offset");
-    gl.uniform4f(location, this.xoff, this.yoff, 0.0, 0.0);
-
-    gl.frontFace(gles.FaceMode.ccw);
-    gl.draw(gles.DrawPrimitive.triangles, 0, 3);
+    
+    let program = this.program;
+    if (program != null) {
+        gl.useProgram(program);
+        let location = program.getUniformLocation("offset");
+        gl.uniform4f(location, this.xoff, this.yoff, 0.0, 0.0);
+        gl.frontFace(gles.FaceMode.ccw);
+        gl.draw(gles.DrawPrimitive.triangles, 0, 3);
+    }
 
     gl.finish();
 

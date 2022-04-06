@@ -3,9 +3,10 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "C:/Program Files/mingw-w64/x86_64-8.1.0-posix-seh-rt_v6-rev0/mingw64/x86_64-w64-mingw32/include",
-                "c:/Users/degimau/.vscode/extensions/mauriziodegirolami.vscode-sing-0.40.3/sdk/inc"
+                "${workspaceFolder}\\**",
+                "C:\\Program Files\\mingw-w64\\x86_64-8.1.0-posix-seh-rt_v6-rev0\\mingw64\\x86_64-w64-mingw32\\include",
+                "c:\\Users\\degimau\\.vscode\\extensions\\mauriziodegirolami.vscode-sing-0.40.3\\sdk\\inc",
+                "${workspaceFolder}\\modules\\inc"
             ],
             "defines": [
                 "_DEBUG",
