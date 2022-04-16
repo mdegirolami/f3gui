@@ -37,16 +37,16 @@ fn App.initApplication(io mm direct.IMmAppServices) bool
     var width i32;
     var height i32;
     while (width < 640 && height < 480) {
-        mm.enumerateModes(entry, width, height);
+        _ = mm.enumerateModes(entry, width, height);
         entry++;
     }
-    mm.setFullScreenVideoResolution(width, height);
+    _ = mm.setFullScreenVideoResolution(width, height);
     this.xoff = 0;
     this.yoff = 0;
     this.res_loaded = false;
 
     var caps direct.SoundCaps;
-    mm.getSoundCaps(caps);
+    _ = mm.getSoundCaps(caps);
 
     return(true);
 }
@@ -68,9 +68,9 @@ fn App.stepApplication(io mm direct.IMmAppServices, io gl gles.IGlEs) bool
 
     // handle inputs
     if (mm.isKeyJustPressed(key_ids.KEY_0)) {
-        mm.changeToFromWindowedMode(true);
+        _ = mm.changeToFromWindowedMode(true);
     } else if (mm.isKeyJustPressed(key_ids.KEY_9)) {
-        mm.changeToFromWindowedMode(false);
+        _ = mm.changeToFromWindowedMode(false);
         this.xoff = 0;
         this.yoff = 0;
     }
@@ -83,7 +83,7 @@ fn App.stepApplication(io mm direct.IMmAppServices, io gl gles.IGlEs) bool
 
     // to test res swich while in full screen 
     if (mm.isKeyJustPressed(key_ids.KEY_8)) {
-        mm.setFullScreenVideoResolution(800, 600);
+        _ = mm.setFullScreenVideoResolution(800, 600);
     }
 
     // just to break and test the variable value
@@ -99,7 +99,7 @@ fn App.stepApplication(io mm direct.IMmAppServices, io gl gles.IGlEs) bool
     let mem = mm.getAvailableMemory();
 
     if (key == "{") {
-        mm.startSoundSource(2:channels, 44100:rate, 4096:frames_in_buffer, this);
+        _ = mm.startSoundSource(2:channels, 44100:rate, 4096:frames_in_buffer, this);
     } else if (key == "}") {
         mm.shutdownSoundSource();
     }
@@ -223,8 +223,8 @@ fn App.onContextLoss(io gl gles.IGlEs) bool
     var vs string;
     var fs string;
     var error string;
-    sio.fileReadText("../../media/vs.txt", vs);
-    sio.fileReadText("../../media/fs.txt", fs);
+    _ = sio.fileReadText("../../media/vs.txt", vs);
+    _ = sio.fileReadText("../../media/fs.txt", fs);
     this.program = gl.createProgram(vs, fs, error);
     if (this.program == null) {
         return(false);
